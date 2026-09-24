@@ -11,24 +11,24 @@ This document defines the architecture for a **Sovereign Air-Gapped Agentic Plat
 === 1.2 Conceptual Architecture
 The following macro-level diagram illustrates the core architectural intent: confining agentic reasoning and secret retrieval within a strictly isolated perimeter before any action is delegated to corporate IT systems.
 
-[mermaid]
+[source, mermaid]
 ----
 graph LR
-    %% Palette de couleurs modernes (Secteur Défense / Enterprise)
+    %% Modern Color Palette (Defense / Enterprise Sector)
     classDef user fill:#0F172A,stroke:#020617,stroke-width:2px,color:#F8FAFC
     classDef corp fill:#334155,stroke:#1E293B,stroke-width:2px,color:#F8FAFC
     classDef core fill:#FFFFFF,stroke:#2563EB,stroke-width:2px,color:#1E293B
     classDef vault fill:#FAFAF9,stroke:#DC2626,stroke-width:2px,color:#1E293B
     classDef fortress fill:#F8FAFC,stroke:#3B82F6,stroke-width:2px,stroke-dasharray: 5 5,color:#0F172A
     
-    %% Style des liens pour plus de clarté
+    %% Link styles for greater clarity
     linkStyle default stroke:#64748B,stroke-width:2px,color:#475569
 
-    %% Noeuds externes (Formes adoucies)
+    %% External Knots (Smoothed Shapes)
     U([Engineering &<br/>DevSecOps Teams]):::user
     Corp([Corporate IT Systems<br/>GitLab / Jira / Databases]):::corp
 
-    %% Zone de confiance isolée
+    %% Isolated Trust Zone
     subgraph AirGap ["Sovereign Air-Gapped Perimeter (Zero Public Egress)"]
         direction TB
         Orchestrator([Agentic<br/>Orchestrator]):::core
@@ -43,7 +43,7 @@ graph LR
     U -->|"Triggers Event / Delegates Task"| Orchestrator
     Orchestrator -->|"Executes Action via Zero-Trust"| Corp
 
-    %% Application du style au subgraph
+    %% Applying the style to the subgraph
     class AirGap fortress
 ----
 
