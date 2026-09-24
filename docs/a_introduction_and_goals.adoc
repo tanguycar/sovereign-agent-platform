@@ -8,34 +8,44 @@ In the aerospace, defense, and space sectors, deploying autonomous AI agents int
 
 This document defines the architecture for a **Sovereign Air-Gapped Agentic Platform with Strict Secrets Management**. The primary objective is not custom AI model development, but rather the engineering of an impenetrable, zero-trust infrastructure that safely confines and orchestrates autonomous agents.
 
-=== 1.2 Conceptual Architecture (System Context)
+=== 1.2 Conceptual Architecture
 The following macro-level diagram illustrates the core architectural intent: confining agentic reasoning and secret retrieval within a strictly isolated perimeter before any action is delegated to corporate IT systems.
 
-[source,mermaid]
-----
+[mermaid]
+....
 graph LR
-    classDef user fill:#0052cc,stroke:#003d99,stroke-width:2px,color:white
-    classDef fortress fill:#e8f4f8,stroke:#00a4a6,stroke-width:3px,stroke-dasharray: 5 5,color:black
-    classDef internal fill:#ff9900,stroke:#cc7a00,stroke-width:2px,color:black
-    classDef vault fill:#f4f6f8,stroke:#d93025,stroke-width:2px,color:black
-    classDef corp fill:#808080,stroke:#4d4d4d,stroke-width:2px,color:white
+    %% Palette de couleurs modernes (Secteur Défense / Enterprise)
+    classDef user fill:#0F172A,stroke:#020617,stroke-width:2px,color:#F8FAFC
+    classDef corp fill:#334155,stroke:#1E293B,stroke-width:2px,color:#F8FAFC
+    classDef core fill:#FFFFFF,stroke:#2563EB,stroke-width:2px,color:#1E293B
+    classDef vault fill:#FAFAF9,stroke:#DC2626,stroke-width:2px,color:#1E293B
+    classDef fortress fill:#F8FAFC,stroke:#3B82F6,stroke-width:2px,stroke-dasharray: 5 5,color:#0F172A
+    
+    %% Style des liens pour plus de clarté
+    linkStyle default stroke:#64748B,stroke-width:2px,color:#475569
 
-    U[Engineering &<br/>DevSecOps Teams]:::user
-    Corp[Corporate IT Systems<br/>GitLab / Jira / Databases]:::corp
+    %% Noeuds externes (Formes adoucies)
+    U([Engineering &<br/>DevSecOps Teams]):::user
+    Corp([Corporate IT Systems<br/>GitLab / Jira / Databases]):::corp
 
+    %% Zone de confiance isolée
     subgraph AirGap ["Sovereign Air-Gapped Perimeter (Zero Public Egress)"]
         direction TB
-        Orchestrator((Agentic<br/>Orchestrator)):::internal
-        LLM[Sovereign LLM<br/>Inference]:::internal
+        Orchestrator([Agentic<br/>Orchestrator]):::core
+        LLM[Sovereign LLM<br/>Inference]:::core
         Vault[(Dynamic Secrets<br/>Vault)]:::vault
         
-        Orchestrator <-->|Context & Reasoning| LLM
-        Orchestrator <-->|Issues Ephemeral Tokens| Vault
+        Orchestrator <-->|"Context & Reasoning"| LLM
+        Orchestrator <-->|"Issues Ephemeral Tokens"| Vault
     end
 
-    U -->|Triggers Event / Delegates Task| Orchestrator
-    Orchestrator -->|Executes Action via Zero-Trust| Corp
-----
+    %% Interactions
+    U -->|"Triggers Event / Delegates Task"| Orchestrator
+    Orchestrator -->|"Executes Action via Zero-Trust"| Corp
+
+    %% Application du style au subgraph
+    class AirGap fortress
+....
 
 === 1.3 Quality Goals
 To operate within highly regulated environments, the architecture is evaluated exclusively against three non-negotiable criteria:
