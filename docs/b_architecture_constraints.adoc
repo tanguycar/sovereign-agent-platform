@@ -1,0 +1,60 @@
+ifndef::imagesdir[:imagesdir: ../images]
+
+[[section-architecture-constraints]]
+== 2. Architecture Constraints
+
+This section outlines the non-negotiable technical, organizational, and regulatory boundaries governing the design, implementation, and operation of the Sovereign Air-Gapped Agentic Platform. All architectural decisions must strictly adhere to these rules to maintain defense-grade security and zero-trust isolation.
+
+=== 2.1 Technical Constraints
+
+The platform enforces a strict zero-trust perimeter, eliminating public network exposure and persistent access rights.
+
+[cols="2,5", options="header"]
+|===
+| ID & Constraint | Specification & Rationale
+
+| *TC-1: Air-Gapped Network Isolation*
+| Zero public internet transit. Total absence of Internet Gateways (IGW) or NAT Gateways. All agentic workload traffic routes strictly internally via private endpoints (e.g., AWS PrivateLink) or dedicated private corporate networks.
+
+| *TC-2: Dynamic Secrets Enforcement*
+| Zero static credentials. Autonomous agents are prohibited from holding hardcoded access rights. All interactions with corporate IT systems require the agent to dynamically request short-lived, ephemeral tokens from a centralized vault (e.g., AWS Secrets Manager, OpenBao).
+
+| *TC-3: Cryptographic Sovereignty*
+| Mandatory envelope encryption for data at rest and in transit using Customer Managed Keys (CMK). A strict separation of duties is enforced between infrastructure operators (compute deployment) and security custodians (key management).
+
+| *TC-4: Immutable & Stateless Compute*
+| The agentic orchestrator and associated LLM reasoning runtimes must operate on stateless, ephemeral compute nodes. No persistent custom application states are permitted locally, minimizing the attack surface.
+|===
+
+=== 2.2 Organizational and Regulatory Constraints
+
+These boundaries guarantee intellectual property protection and strict operational governance in compliance with industrial security policies (PSSI).
+
+[cols="2,5", options="header"]
+|===
+| ID & Constraint | Specification & Rationale
+
+| *OC-1: Zero Data Retention (ZDR)*
+| Strict technical and contractual prohibition of model retraining. Agentic reasoning traces, prompts, and corporate context payloads must never be persisted by the inference engine beyond the ephemeral execution window.
+
+| *OC-2: Deterministic Traceability*
+| Every API call, delegated task, vault access, and agent reasoning step must be logged immutably to a centralized Security Information and Event Management (SIEM) system to meet aerospace/defense auditability standards.
+
+| *OC-3: Geographic Data Residency*
+| Primary infrastructure, vault storage, and sovereign LLM execution must be strictly provisioned within sovereign or heavily restricted European boundaries (e.g., SecNumCloud enclaves or specific `eu-west-3` boundaries).
+|===
+
+=== 2.3 Conventions and Standards
+
+To ensure reusability and alignment with DevSecOps engineering standards, the following conventions are enforced.
+
+[cols="2,5", options="header"]
+|===
+| ID & Convention | Specification & Tooling
+
+| *CON-1: DevSecOps & IaC Validation*
+| 100% Infrastructure as Code (Terraform/OpenTofu). Automated CI/CD pipelines must enforce mandatory static security analysis (tfsec, checkov) and linting before any infrastructure deployment is authorized.
+
+| *CON-2: Documentation-as-Code*
+| Architecture documentation is maintained alongside the codebase using AsciiDoc and the arc42 framework, ensuring technical specifications remain version-controlled and synchronized with the deployed infrastructure.
+|===
