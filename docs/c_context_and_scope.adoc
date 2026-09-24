@@ -1,0 +1,74 @@
+ifndef::imagesdir[:imagesdir: ../images]
+
+[[section-context-and-scope]]
+== 1. Context and scope
+
+=== Business Context
+
+.Figure 2: Sovereign Agentic Platform Business Context
+[source, mermaid]
+----
+graph LR
+    %% Modern Color Palette (Defense / Enterprise Sector)
+    classDef user fill:#0F172A,stroke:#020617,stroke-width:2px,color:#F8FAFC
+    classDef corp fill:#334155,stroke:#1E293B,stroke-width:2px,color:#F8FAFC
+    classDef core fill:#FFFFFF,stroke:#2563EB,stroke-width:2px,color:#1E293B
+    classDef vault fill:#FAFAF9,stroke:#DC2626,stroke-width:2px,color:#1E293B
+    classDef fortress fill:#F8FAFC,stroke:#3B82F6,stroke-width:2px,stroke-dasharray: 5 5,color:#0F172A
+    
+    %% Link styles for greater clarity
+    linkStyle default stroke:#64748B,stroke-width:2px,color:#475569
+
+    %% Left side: Initiators, Identity & Approvers
+    Initiator([Task Initiator<br/>Engineers & CI/CD Events]):::user
+    Approver([Action Validator<br/>Human-in-the-Loop]):::user
+    IdP([Enterprise Directory<br/>Identity Provider]):::corp
+
+    %% Bottom: Governance (Security & Finance)
+    SecOps([Security Governance<br/>SecOps / SIEM]):::corp
+    FinOps([Financial Controlling<br/>FinOps / DAF]):::corp
+
+    %% Right side: Corporate IT Systems
+    ReadSys([Knowledge Repositories<br/>Read-Only: PLM, Specs]):::corp
+    WriteSys([Operational Systems<br/>Execution Targets: CI/CD, ITSM]):::corp
+
+    %% Isolated Trust Zone (The Black Box)
+    subgraph AirGap ["Sovereign Air-Gapped Perimeter"]
+        direction TB
+        Platform([Sovereign Agentic Platform<br/>Orchestrator]):::core
+        LLM([Cognitive Engine<br/>Sovereign LLM Provider]):::core
+        Vault[(Authorization Authority<br/>Secrets Vault)]:::vault
+    end
+
+    %% Initiator & Approver Flows
+    Initiator -->|"Business goals &<br/>system event triggers"| Platform
+    Platform -->|"Synthesized results &<br/>execution status"| Initiator
+    
+    Platform -->|"Pending critical actions<br/>requiring validation"| Approver
+    Approver -->|"Execution mandates<br/>(Approval/Rejection)"| Platform
+
+    %% Identity Flow
+    IdP -->|"User clearance levels &<br/>department attributes"| Platform
+
+    %% Secrets Flow
+    Platform -->|"Request for delegated<br/>system access"| Vault
+    Vault -->|"Temporary action rights<br/>(Time-bound credentials)"| Platform
+
+    %% LLM Flow
+    Platform -->|"Business context &<br/>decision frameworks"| LLM
+    LLM -->|"Reasoning paths &<br/>action intentions"| Platform
+
+    %% Corporate IT Flows
+    Platform -->|"Domain context requests"| ReadSys
+    ReadSys -->|"Approved engineering data"| Platform
+
+    Platform -->|"Authenticated business<br/>state modifications"| WriteSys
+    WriteSys -->|"Operation outcomes"| Platform
+
+    %% Governance Flows
+    Platform -->|"Immutable audit trails &<br/>reasoning logs"| SecOps
+    Platform -->|"Token consumption &<br/>cost allocation metrics"| FinOps
+
+    %% Applying the style to the subgraph
+    class AirGap fortress
+----
