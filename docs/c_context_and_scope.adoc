@@ -1,7 +1,7 @@
 ifndef::imagesdir[:imagesdir: ../images]
 
 [[section-context-and-scope]]
-== 1. Context and scope
+== Context and scope
 
 === Business Context
 
@@ -147,7 +147,7 @@ image::c2_context_and_scope.png[Technical Context]
 //     CloudWatch -->|"Log Forwarding<br/>via Direct Connect"| SIEM
 // ----
 
-.Technical Channels and Isolation Matrix
+// .Technical Channels and Isolation Matrix
 [cols="18%,22%,24%,16%,20%",options="header"]
 |===
 |Interface / Channel |Source -> Target |Protocol & Security |Data Format |Isolation Mechanism

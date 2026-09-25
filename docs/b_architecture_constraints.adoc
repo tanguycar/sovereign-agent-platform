@@ -1,11 +1,11 @@
 ifndef::imagesdir[:imagesdir: ../images]
 
 [[section-architecture-constraints]]
-== 2. Architecture Constraints
+== Architecture Constraints
 
 This section outlines the non-negotiable technical, organizational, and regulatory boundaries governing the design, implementation, and operation of the Sovereign Air-Gapped Agentic Platform. All architectural decisions must strictly adhere to these rules to maintain defense-grade security and zero-trust isolation.
 
-=== 2.1 Technical Constraints
+=== 1 Technical Constraints
 
 The platform enforces a strict zero-trust perimeter, eliminating public network exposure and persistent access rights.
 
@@ -26,7 +26,7 @@ The platform enforces a strict zero-trust perimeter, eliminating public network 
 | The agentic orchestrator and associated LLM reasoning runtimes must operate on stateless, ephemeral compute nodes. No persistent custom application states are permitted locally, minimizing the attack surface.
 |===
 
-=== 2.2 Organizational and Regulatory Constraints
+=== 2 Organizational and Regulatory Constraints
 
 These boundaries guarantee intellectual property protection and strict operational governance in compliance with industrial security policies (PSSI).
 
@@ -44,7 +44,7 @@ These boundaries guarantee intellectual property protection and strict operation
 | Primary infrastructure, vault storage, and sovereign LLM execution must be strictly provisioned within sovereign or heavily restricted European boundaries (e.g., SecNumCloud enclaves or specific `eu-west-3` boundaries).
 |===
 
-=== 2.3 Conventions and Standards
+=== 3 Conventions and Standards
 
 To ensure reusability and alignment with DevSecOps engineering standards, the following conventions are enforced.
 

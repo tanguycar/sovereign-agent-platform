@@ -1,0 +1,72 @@
+ifndef::imagesdir[:imagesdir: ../images]
+
+[[section-building-block-view]]
+== Building Block View
+
+The Building Block View explains the static decomposition of the Sovereign Agentic Platform. It opens the "black box" defined in the System Context (Section 3) to reveal the internal subsystems, their responsibilities, and their interfaces.
+
+=== 1 Whitebox Overall System (Level 1)
+
+At the highest level of abstraction, the agentic platform is decomposed into five logical layers. This modularity ensures a strict separation of concerns between state orchestration, pure cognitive reasoning, enterprise execution, and cryptographic governance.
+
+.Level 1: Whitebox Overall System
+image::d1_building_block_view.png[Business Context]
+
+// [source,mermaid]
+// ----
+// graph TD
+//     %% Base colors from Technical Context (C2)
+//     classDef system fill:#0052cc,stroke:#003d99,stroke-width:2px,color:white;
+//     classDef aws fill:#ff9900,stroke:#cc7a00,stroke-width:2px,color:black;
+//     classDef security fill:#e6f0ff,stroke:#0052cc,stroke-width:2px,stroke-dasharray: 5 5,color:black;
+//     classDef boundary fill:none,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
+
+//     subgraph BlackBox ["Sovereign Air-Gapped Agentic Platform (Whitebox Level 1)"]
+        
+//         SecPlane["<b>5. Trust, Security & Secrets Plane</b><br/><i>(AWS Secrets Manager, KMS, Bedrock Guardrails, CloudTrail)</i>"]:::security
+        
+//         Orchestrator["<b>1. Agentic Orchestration Layer</b><br/><i>(Control Plane - AWS Fargate)</i>"]:::system
+        
+//         subgraph SubSystems ["Capabilities"]
+//             Knowledge["<b>3. Knowledge & Retrieval Pipeline</b><br/><i>(OpenSearch / Amazon Titan)</i>"]:::aws
+//             Cognitive["<b>2. Cognitive Engine Layer</b><br/><i>(Amazon Bedrock / Mistral Large 3)</i>"]:::aws
+//             Action["<b>4. Tools & Action Layer</b><br/><i>(Execution Engine / HITL)</i>"]:::system
+//         end
+        
+//         %% Core dependencies
+//         SecPlane -. "Zero-Trust Governance<br/>(Tokens, KMS Keys, Prompt Filters, Audit)" .- Orchestrator
+//         Orchestrator -->|"Domain Context Search<br/>(ABAC applied)"| Knowledge
+//         Orchestrator -->|"Reasoning & Synthesis<br/>(Stateless Inference)"| Cognitive
+//         Orchestrator -->|"API Delegation<br/>(Approval required)"| Action
+//     end
+
+//     class BlackBox boundary;
+//     style SubSystems fill:none,stroke:none;
+// ----
+
+The following table details the functional accountability of each building block within the air-gapped perimeter.
+
+[cols="22%,43%,35%",options="header"]
+|===
+| Building Block | Core Responsibility | Key Technologies
+
+| **1. Agentic Orchestration Layer**
+| "Control Plane". Maintains execution state and routes data without embedding cognitive logic.
+| AWS Fargate / Step Functions.
+
+| **2. Cognitive Engine Layer**
+| "Reasoning Engine". Formulates execution plans under a strict Zero Data Retention (ZDR) policy.
+| Amazon Bedrock (Mistral Large 3).
+
+| **3. Knowledge & Retrieval Pipeline**
+| Context retrieval system. Enforces Attribute-Based Access Control (ABAC) before vector fetching.
+| Amazon S3, OpenSearch Serverless, Amazon Titan.
+
+| **4. Tools & Action Layer**
+| "Execution Engine". Executes corporate API calls post-HITL validation using strictly ephemeral tokens.
+| Custom integration modules on AWS Fargate.
+
+| **5. Trust, Security & Secrets Plane**
+| Transversal governance. Provisions dynamic secrets, filters prompts, and exports immutable audit logs to the SIEM.
+| AWS Secrets Manager, KMS (CMK), Bedrock Guardrails, CloudTrail.
+|===
