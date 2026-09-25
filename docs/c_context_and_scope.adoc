@@ -11,67 +11,186 @@ image::c1_context_and_scope.png[Business Context]
 // [source, mermaid]
 // ----
 // graph LR
-//     %% Modern Color Palette (Defense / Enterprise Sector)
-//     classDef user fill:#0F172A,stroke:#020617,stroke-width:2px,color:#F8FAFC
-//     classDef corp fill:#334155,stroke:#1E293B,stroke-width:2px,color:#F8FAFC
-//     classDef core fill:#FFFFFF,stroke:#2563EB,stroke-width:2px,color:#1E293B
-//     classDef vault fill:#FAFAF9,stroke:#DC2626,stroke-width:2px,color:#1E293B
-//     classDef fortress fill:#F8FAFC,stroke:#3B82F6,stroke-width:2px,stroke-dasharray: 5 5,color:#0F172A
+//      %% Modern Color Palette (Calquée sur l'esthétique précédente)
+//      classDef system fill:#0052cc,stroke:#003d99,stroke-width:2px,color:white;
+//      classDef external fill:#808080,stroke:#4d4d4d,stroke-width:2px,color:white;
+//      classDef aws fill:#ff9900,stroke:#cc7a00,stroke-width:2px,color:black;
+//      classDef interface fill:#e6f0ff,stroke:#0052cc,stroke-width:2px,stroke-dasharray: 5 5,color:black;
+
+//      %% Left side: Initiators, Identity & Approvers
+//      Initiator([Task Initiator<br/>Engineers & CI/CD Events]):::external
+//      Approver([Action Validator<br/>Human-in-the-Loop]):::external
+//      IdP([Enterprise Directory<br/>Identity Provider]):::external
+
+//      %% Bottom: Governance (Security & Finance)
+//      SecOps([Security Governance<br/>SecOps / SIEM]):::external
+//      FinOps([Financial Controlling<br/>FinOps / DAF]):::external
+
+//      %% Right side: Corporate IT Systems
+//      ReadSys([Knowledge Repositories<br/>Read-Only: PLM, Specs]):::external
+//      WriteSys([Operational Systems<br/>Execution Targets: CI/CD, ITSM]):::external
+
+//      %% Isolated Trust Zone (The Black Box)
+//      subgraph AirGap ["Sovereign Air-Gapped Perimeter"]
+//          direction TB
+//          Platform([Sovereign Agentic Platform<br/>Orchestrator]):::system
+//          LLM([Cognitive Engine<br/>Sovereign LLM Provider]):::system
+//          Vault[(Authorization Authority<br/>Secrets Vault)]:::aws
+//      end
+
+//      %% Initiator & Approver Flows
+//      Initiator -->|"Business goals &<br/>system event triggers"| Platform
+//      Platform -->|"Synthesized results &<br/>execution status"| Initiator
     
-//     %% Link styles for greater clarity
-//     linkStyle default stroke:#64748B,stroke-width:2px,color:#475569
+//      Platform -->|"Pending critical actions<br/>requiring validation"| Approver
+//      Approver -->|"Execution mandates<br/>(Approval/Rejection)"| Platform
 
-//     %% Left side: Initiators, Identity & Approvers
-//     Initiator([Task Initiator<br/>Engineers & CI/CD Events]):::user
-//     Approver([Action Validator<br/>Human-in-the-Loop]):::user
-//     IdP([Enterprise Directory<br/>Identity Provider]):::corp
+//      %% Identity Flow
+//      IdP -->|"User clearance levels &<br/>department attributes"| Platform
 
-//     %% Bottom: Governance (Security & Finance)
-//     SecOps([Security Governance<br/>SecOps / SIEM]):::corp
-//     FinOps([Financial Controlling<br/>FinOps / DAF]):::corp
+//      %% Secrets Flow
+//      Platform -->|"Request for delegated<br/>system access"| Vault
+//      Vault -->|"Temporary action rights<br/>(Time-bound credentials)"| Platform
 
-//     %% Right side: Corporate IT Systems
-//     ReadSys([Knowledge Repositories<br/>Read-Only: PLM, Specs]):::corp
-//     WriteSys([Operational Systems<br/>Execution Targets: CI/CD, ITSM]):::corp
+//      %% LLM Flow
+//      Platform -->|"Business context &<br/>decision frameworks"| LLM
+//      LLM -->|"Reasoning paths &<br/>action intentions"| Platform
 
-//     %% Isolated Trust Zone (The Black Box)
-//     subgraph AirGap ["Sovereign Air-Gapped Perimeter"]
-//         direction TB
-//         Platform([Sovereign Agentic Platform<br/>Orchestrator]):::core
-//         LLM([Cognitive Engine<br/>Sovereign LLM Provider]):::core
-//         Vault[(Authorization Authority<br/>Secrets Vault)]:::vault
-//     end
+//      %% Corporate IT Flows
+//      Platform -->|"Domain context requests"| ReadSys
+//      ReadSys -->|"Approved engineering data"| Platform
 
-//     %% Initiator & Approver Flows
-//     Initiator -->|"Business goals &<br/>system event triggers"| Platform
-//     Platform -->|"Synthesized results &<br/>execution status"| Initiator
-    
-//     Platform -->|"Pending critical actions<br/>requiring validation"| Approver
-//     Approver -->|"Execution mandates<br/>(Approval/Rejection)"| Platform
+//      Platform -->|"Authenticated business<br/>state modifications"| WriteSys
+//      WriteSys -->|"Operation outcomes"| Platform
 
-//     %% Identity Flow
-//     IdP -->|"User clearance levels &<br/>department attributes"| Platform
+//      %% Governance Flows
+//      Platform -->|"Immutable audit trails &<br/>reasoning logs"| SecOps
+//      Platform -->|"Token consumption &<br/>cost allocation metrics"| FinOps
 
-//     %% Secrets Flow
-//     Platform -->|"Request for delegated<br/>system access"| Vault
-//     Vault -->|"Temporary action rights<br/>(Time-bound credentials)"| Platform
-
-//     %% LLM Flow
-//     Platform -->|"Business context &<br/>decision frameworks"| LLM
-//     LLM -->|"Reasoning paths &<br/>action intentions"| Platform
-
-//     %% Corporate IT Flows
-//     Platform -->|"Domain context requests"| ReadSys
-//     ReadSys -->|"Approved engineering data"| Platform
-
-//     Platform -->|"Authenticated business<br/>state modifications"| WriteSys
-//     WriteSys -->|"Operation outcomes"| Platform
-
-//     %% Governance Flows
-//     Platform -->|"Immutable audit trails &<br/>reasoning logs"| SecOps
-//     Platform -->|"Token consumption &<br/>cost allocation metrics"| FinOps
-
-//     %% Applying the style to the subgraph
-//     class AirGap fortress
+//      %% Applying the style to the subgraph
+//      class AirGap interface
 // ----
 
+
+
+=== Technical Context
+
+The technical context defines the physical and network infrastructure, transport protocols, and data payloads exchanged between the Sovereign Agentic Platform and its external dependencies. The interactions below explicitly map the communication interfaces, demonstrating strict adherence to the zero-public-internet (air-gapped) constraints.
+
+.Technical Context & Network Isolation Boundaries
+image::c2_context_and_scope.png[Technical Context]
+
+// [source,mermaid]
+// ----
+// graph LR
+//     classDef system fill:#0052cc,stroke:#003d99,stroke-width:2px,color:white;
+//     classDef external fill:#808080,stroke:#4d4d4d,stroke-width:2px,color:white;
+//     classDef aws fill:#ff9900,stroke:#cc7a00,stroke-width:2px,color:black;
+//     classDef interface fill:#e6f0ff,stroke:#0052cc,stroke-width:2px,stroke-dasharray: 5 5,color:black;
+
+//     %% ZONE GAUCHE : Réseau d'entreprise
+//     subgraph Corporate ["🏢 Corporate WAN (On-Premises)"]
+        
+//         subgraph Ingress ["Input Actors & Sources"]
+//             TaskInit["Task Initiator"]:::external
+//             ActionVal["Action Validator"]:::external
+//             IdP["Enterprise IdP"]:::external
+//             PLM["PLM Document Sync"]:::external
+//         end
+        
+//         subgraph Egress ["Execution Targets & Audit"]
+//             CICD["Enterprise CI/CD"]:::external
+//             ITSM["Enterprise ITSM"]:::external
+//             SIEM["Corporate SIEM"]:::external
+//         end
+//     end
+
+//     %% ZONE DROITE : Cloud AWS Souverain
+//     subgraph Region ["☁️ AWS Region (Air-Gapped Boundary)"]
+        
+//         subgraph VPC ["🔒 Isolated VPC (Zero IGW/NAT)"]
+//             Orchestrator["<b>Sovereign Agentic Orchestrator</b><br/><i>(AWS Fargate - Stateless)</i>"]:::system
+            
+//             subgraph Network_Interfaces ["VPC Routing Layer"]
+//                 VPCE["VPC Interface Endpoints<br/>(AWS PrivateLink)"]:::interface
+//                 S3GW["S3 Gateway Endpoint<br/>(Internal Route)"]:::interface
+//             end
+//         end
+
+//         subgraph Services ["⚙️ AWS Managed Services"]
+//             Bedrock["Amazon Bedrock"]:::aws
+//             OpenSearch["OpenSearch Serverless"]:::aws
+//             Secrets["AWS Secrets Manager"]:::aws
+//             DynamoDB["AWS DynamoDB"]:::aws
+//             CloudWatch["Amazon CloudWatch"]:::aws
+//             S3["Amazon S3"]:::aws
+//         end
+//     end
+
+//     %% FLUX ENTRANTS (Corporate -> AWS)
+//     TaskInit -->|"HTTPS/TLS 1.3<br/>via Direct Connect"| Orchestrator
+//     ActionVal -->|"HTTPS/TLS 1.3<br/>via Direct Connect"| Orchestrator
+//     IdP -->|"OIDC / JWT Claims<br/>via Direct Connect"| Orchestrator
+//     PLM -->|"HTTPS/TLS 1.3<br/>via Direct Connect"| S3
+
+//     %% CŒUR DU SYSTÈME (Orchestrateur -> Interfaces Réseau)
+//     Orchestrator -->|"HTTPS/TLS 1.2+<br/>(AWS SigV4)"| VPCE
+//     Orchestrator -->|"HTTPS/TLS 1.2+<br/>(AWS SigV4)"| S3GW
+
+//     %% DÉPENDANCES AWS (Interfaces -> Services)
+//     VPCE --> Bedrock & OpenSearch & Secrets & DynamoDB & CloudWatch
+//     S3GW --> S3
+
+//     %% FLUX SORTANTS (AWS -> Corporate)
+//     Orchestrator -->|"REST API + Ephemeral Tokens<br/>via Direct Connect"| CICD
+//     Orchestrator -->|"REST API + Ephemeral Tokens<br/>via Direct Connect"| ITSM
+//     CloudWatch -->|"Log Forwarding<br/>via Direct Connect"| SIEM
+// ----
+
+.Technical Channels and Isolation Matrix
+[cols="18%,22%,24%,16%,20%",options="header"]
+|===
+|Interface / Channel |Source -> Target |Protocol & Security |Data Format |Isolation Mechanism
+
+|*Identity & ABAC Claims*
+|Corporate IdP -> Orchestrator
+|HTTPS (TLS 1.3), TCP 443 over 802.1Q VLAN (BGP)
+|OIDC / JWT Claims
+|Dedicated private fiber (AWS Direct Connect); zero public Internet routability.
+
+|*Document Push (Sync)*
+|PLM Agent -> Amazon S3
+|HTTPS (TLS 1.3), TCP 443 over 802.1Q VLAN (BGP)
+|Binary Stream (PDF, CAD)
+|AWS Direct Connect to S3 Interface Endpoint; bypasses the public internet completely.
+
+|*Cognitive & Vector Search*
+|Orchestrator -> Bedrock & OpenSearch
+|HTTPS (TLS 1.2+), AWS SigV4, TCP 443 via PrivateLink
+|JSON (Prompts, Embeddings)
+|VPC Interface Endpoints (local ENIs). Traffic is cryptographically sealed on the AWS private backbone.
+
+|*State & Secrets Retrieval*
+|Orchestrator -> DynamoDB & Secrets Manager
+|HTTPS (TLS 1.2+), AWS SigV4, TCP 443 via PrivateLink
+|JSON (Ephemeral tokens, state)
+|VPC Interface Endpoints. Enforces strict zero-trust machine-to-machine authentication.
+
+|*Document Retrieval*
+|Orchestrator -> Amazon S3
+|HTTPS (TLS 1.2+), AWS SigV4, TCP 443 via Gateway
+|Binary Stream
+|VPC Route Table prefix list redirection (Gateway Endpoint); no transit outside the internal network.
+
+|*Action Execution (Egress)*
+|Orchestrator -> CI/CD & ITSM
+|HTTPS (TLS 1.3), REST API (TCP 443) via Direct Connect
+|JSON (Pipelines, Tickets)
+|Outbound connection initiated internally using strictly scoped ephemeral tokens; routed over private Direct Connect.
+
+|*Security & Audit Export*
+|CloudWatch -> Corporate SIEM
+|Log Forwarding / Syslog over TLS via Direct Connect
+|JSON / CEF
+|Log streams pushed directly to corporate on-premises infrastructure via dedicated private lines.
+|===
