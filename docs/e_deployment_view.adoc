@@ -1,0 +1,155 @@
+ifndef::imagesdir[:imagesdir: ../images]
+
+[[section-deployment-view]]
+== Deployment View
+
+=== 1. Infrastructure Level 1: Regional Network Topology
+
+The overall system is deployed within a single, highly isolated Virtual Private Cloud (VPC) spanning multiple Availability Zones (AZ) to ensure high availability without compromising the closed network perimeter. The separation of subnets enforces a strict boundary between the compute layer and the AWS API entry points.
+
+.Level 1: Deployment infrastructure
+image::e1_deployment_view.png[Deployment View]
+
+// [source,mermaid]
+// ----
+// graph TD
+//     %% Custom Color Palette 
+//     classDef system fill:#0052cc,stroke:#003d99,stroke-width:2px,color:white;
+//     classDef external fill:#808080,stroke:#4d4d4d,stroke-width:2px,color:white;
+//     classDef aws fill:#ff9900,stroke:#cc7a00,stroke-width:2px,color:black;
+//     classDef interface fill:#e6f0ff,stroke:#0052cc,stroke-width:2px,stroke-dasharray: 5 5,color:black;
+//     classDef security fill:#f9ebf9,stroke:#8e24aa,stroke-width:2px,color:black;
+//     classDef boundary fill:none,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
+//     classDef solidBoundary fill:none,stroke:#333,stroke-width:2px;
+
+//     subgraph Corporate ["🏢 Corporate On-Premises Datacenter"]
+//         DX["AWS Direct Connect Router"]:::external
+//     end
+
+//     subgraph AWSRegion ["☁️ AWS Region (eu-west-3 - Paris)"]
+        
+//         subgraph VPC ["🔒 Isolated VPC (10.0.0.0/16) - Air-Gapped"]
+//             VGW["Virtual Private Gateway (VGW)"]:::aws
+//             S3GW["S3 Gateway Endpoint<br/>(Route Table)"]:::interface
+//             ANFW["<b>AWS Network Firewall</b><br/><i>(Deep Packet Inspection & Egress)</i>"]:::security
+
+//             subgraph AZ ["Multi-Availability Zone (AZ-A & AZ-B)"]
+//                 subgraph AppSubnet ["App Private Subnets (Compute Layer)"]
+//                     Compute["AWS Fargate & Step Functions<br/>(Agentic Orchestrator & State)"]:::system
+//                 end
+                
+//                 subgraph GatewaySubnet ["FinOps & API Routing Subnets"]
+//                     LLMGW["<b>Internal LLM Gateway Proxy</b><br/><i>(e.g., LiteLLM / Envoy on Fargate)</i>"]:::system
+//                 end
+
+//                 subgraph EndpointsSubnet ["Endpoints Private Subnets (PrivateLink)"]
+//                     VPCE["VPC Interface Endpoints<br/>(ENIs)"]:::interface
+//                 end
+//             end
+            
+//             %% Bidirectional flow for Egress/Ingress Firewall inspection
+//             VGW <-->|"TCP 443"| ANFW
+//             ANFW <-->|"Filtered Traffic"| Compute
+            
+//             Compute -->|"API Call"| LLMGW
+//             LLMGW -->|"Cache Miss / Auth (TCP 443)"| VPCE
+//             Compute -.->|"Internal Routing"| S3GW
+//         end
+
+//         subgraph Services ["⚙️ AWS Managed Services (Private Backbone)"]
+//             Bedrock["Amazon Bedrock<br/>(Mistral Large 3 / Titan)"]:::aws
+//             AOSS["Amazon OpenSearch Serverless"]:::aws
+//             Vault["AWS Secrets Manager<br/>(Dynamic Vault)"]:::aws
+//             ElastiCache["Amazon ElastiCache<br/>(Semantic Cache)"]:::aws
+//             KMS["AWS KMS<br/>(CMK)"]:::aws
+//             CW["Amazon CloudWatch / CloudTrail"]:::aws
+//             S3["Amazon S3"]:::aws
+//         end
+//     end
+
+//     Corporate <-->|"Private Fiber (BGP / 802.1Q)"| VGW
+    
+//     %% Connections from VPC Endpoints to Services
+//     VPCE -->|"AWS PrivateLink (SigV4)"| Bedrock
+//     VPCE -->|"AWS PrivateLink (SigV4)"| AOSS
+//     VPCE -->|"AWS PrivateLink (SigV4)"| Vault
+//     VPCE -->|"AWS PrivateLink (SigV4)"| KMS
+//     VPCE -->|"AWS PrivateLink (SigV4)"| CW
+//     VPCE -->|"AWS ENI"| ElastiCache
+    
+//     %% Connection from Gateway to S3
+//     S3GW -->|"AWS SDN"| S3
+    
+//     class AWSRegion,VPC,AZ,Services solidBoundary;
+//     class AppSubnet,EndpointsSubnet,GatewaySubnet boundary;
+// ----
+
+[cols="20%,25%,55%", options="header"]
+|===
+| Component | AWS Resource | Deployment & Isolation Rationale
+
+| **Corporate Access & Inspection**
+| AWS Direct Connect + AWS Network Firewall
+| Provides a dedicated, private physical fiber connection. All ingress and **egress** traffic between the corporate network and the agentic orchestrator passes through **AWS Network Firewall** for Layer 7 Deep Packet Inspection, ensuring the agent cannot execute unauthorized REST payloads toward internal legacy systems.
+
+| **Agentic Compute Layer**
+| AWS Fargate / Step Functions
+| Deployed exclusively across **App Private Subnets** in multiple Availability Zones. Step Functions manages the long-running agentic state (waiting for HITL approval), while Fargate provides the ephemeral execution environments.
+
+| **FinOps LLM Gateway Proxy**
+| AWS Fargate (Proxy) + Amazon ElastiCache
+| An internal routing layer placed in front of Bedrock. The Fargate proxy intercepts agentic queries to provide **Semantic Caching (ElastiCache)**, drastically reducing duplicate token processing costs. It enforces hard token quotas per engineering project, resolving the primary FinOps unpredictability associated with autonomous agents.
+
+| **API Interfaces**
+| AWS PrivateLink (Interface Endpoints)
+| Deployed in dedicated **Endpoints Private Subnets**. These inject Elastic Network Interfaces (ENIs) with private IP addresses into the VPC, securely bridging the internal gateway to Amazon Bedrock, Secrets Manager, OpenSearch, and KMS.
+
+| **Storage Routing**
+| Amazon S3 Gateway Endpoint
+| Attached at the VPC Route Table level. Routes heavy document retrieval traffic internally via the AWS SDN instead of PrivateLink, maintaining air-gapped isolation without incurring data transfer processing costs.
+
+|===
+
+
+=== 7.2 Infrastructure Level 2: Micro-Segmentation & Security Groups
+
+To enforce a Zero-Trust architecture within the VPC boundary, the deployment utilizes strict **Security Group (SG) chaining** and **VPC Endpoint Policies (VPCe)**. This configuration guarantees that even if the ephemeral compute layer is compromised, lateral movement or data exfiltration to unauthorized systems is cryptographically and logically impossible at the network interface level.
+
+.Level 2: Deployment infrastructure
+image::e2_deployment_view.png[Deployment View]
+
+// [source,mermaid]
+// ----
+// graph LR
+//     %% Custom Palette matching C2 and Level 1
+//     classDef sg fill:#f9ebf9,stroke:#8e24aa,stroke-width:2px,color:black;
+//     classDef eni fill:#e0f7fa,stroke:#006064,stroke-width:2px,color:black;
+//     classDef inspection fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:black;
+
+//     Corp["Corporate VGW\n(On-Premises IPs)"]:::eni -->|"Inbound: TCP 443"| ANFW
+    
+//     subgraph InspectionLayer ["Inspection Layer"]
+//         ANFW["AWS Network Firewall\n(Deep Packet Inspection)"]:::inspection
+//     end
+    
+//     ANFW -->|"Filtered Inbound"| AppSG
+    
+//     subgraph AppSG ["App Security Group (Orchestrator)"]
+//         Fargate["Agentic Orchestrator\n(Fargate)"]:::eni
+//     end
+    
+//     AppSG -->|"Outbound: TCP 443"| GatewaySG
+    
+//     subgraph GatewaySG ["Gateway Security Group (FinOps)"]
+//         LLMProxy["LLM Gateway Proxy\n(Fargate / ElastiCache)"]:::eni
+//     end
+    
+//     AppSG -->|"Outbound: TCP 443"| EndpointSG
+//     GatewaySG -->|"Outbound: TCP 443"| EndpointSG
+    
+//     subgraph EndpointSG ["Endpoint Security Group (PrivateLink)"]
+//         ENI["VPC Interface Endpoints\n(ENIs)"]:::eni
+//     end
+    
+//     EndpointSG -->|"AWS Private Backbone"| Services["AWS Managed APIs\n(Bedrock, KMS, Secrets, OpenSearch)"]:::eni
+// ----
