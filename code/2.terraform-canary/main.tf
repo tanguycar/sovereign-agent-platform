@@ -42,7 +42,7 @@ resource "aws_security_group" "vpc_endpoints_sg" {
   }
 }
 
-# 3. S3 Gateway Endpoint (Gratuit)
+# 3. S3 Gateway Endpoint
 resource "aws_vpc_endpoint" "s3_gateway" {
   vpc_id            = aws_vpc.air_gapped_vpc.id
   service_name      = "com.amazonaws.eu-west-3.s3"
@@ -52,7 +52,7 @@ resource "aws_vpc_endpoint" "s3_gateway" {
 
 # 4. Interface Endpoints (Payants - Bedrock + terminaux SSM pour la connexion)
 locals {
-  endpoints = ["bedrock-runtime", "ssm", "ssmmessages", "ec2messages"]
+  endpoints = ["bedrock-runtime", "ssm", "ssmmessages", "ec2messages", "secretsmanager"]
 }
 
 resource "aws_vpc_endpoint" "interfaces" {
@@ -77,18 +77,20 @@ resource "aws_iam_role" "ssm_role" {
       Principal = { Service = "ec2.amazonaws.com" }
     }]
   })
+}
 
-  inline_policy {
-    name = "allow-list-all-buckets"
-    policy = jsonencode({
-      Version = "2012-10-17",
-      Statement = [{
-        Effect   = "Allow",
-        Action   = "s3:ListAllMyBuckets",
-        Resource = "*"
-      }]
-    })
-  }
+resource "aws_iam_role_policy" "s3_list_policy" {
+  name = "allow-list-all-buckets"
+  role = aws_iam_role.ssm_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect   = "Allow",
+      Action   = "s3:ListAllMyBuckets",
+      Resource = "*"
+    }]
+  })
 }
 
 resource "aws_iam_role_policy_attachment" "ssm_policy" {
@@ -117,4 +119,36 @@ resource "aws_instance" "canary_test" {
   iam_instance_profile = aws_iam_instance_profile.ssm_profile.name
   depends_on           = [aws_vpc_endpoint.interfaces]
   tags = { Name = "Canary-Test-Air-Gapped" }
+}
+
+# 6. Création d'un secret fictif d'entreprise
+resource "aws_secretsmanager_secret" "dummy_enterprise_token" {
+  name = "enterprise/dummy-token"
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "dummy_token_val" {
+  secret_id     = aws_secretsmanager_secret.dummy_enterprise_token.id
+  secret_string = jsonencode({ "token" : "souverain-secret-toulouse-123" })
+}
+
+# 7. Extension de la politique IAM du rôle SSM pour autoriser Secrets Manager et Bedrock
+resource "aws_iam_role_policy" "canary_business_permissions" {
+  name = "canary-business-policy"
+  role = aws_iam_role.ssm_role.name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = aws_secretsmanager_secret.dummy_enterprise_token.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel"]
+        Resource = "*"
+      }
+    ]
+  })
 }
