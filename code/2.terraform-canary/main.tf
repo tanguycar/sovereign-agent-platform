@@ -129,6 +129,5 @@ resource "aws_ecs_task_definition" "canary_task" {
 output "repository_url" { value = aws_ecr_repository.canary_repo.repository_url }
 output "cluster_name" { value = aws_ecs_cluster.canary_cluster.name }
 output "task_family" { value = aws_ecs_task_definition.canary_task.family }
-# Le script pointera automatiquement vers le Compute Subnet et le Compute SG :
 output "subnet_id" { value = data.aws_subnet.compute_subnet_a.id }
 output "security_group_id" { value = data.aws_security_group.compute_sg.id }
