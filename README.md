@@ -58,8 +58,66 @@ Résultat attendu : Les logs doivent afficher [SUCCESS] pour la récupération d
 #### 3. State Orchestration (Step Functions)
 Implement the AWS Step Functions state machine to trigger the Fargate task. This step validates offloading wait-time management (pausing the agent) to an optimized serverless service.
 
+##### Validation (Le Test Empirique)
+Se placer dans `code/3.terraform-orchestration/`.
+```
+terraform init && terraform apply -auto-approve
+export SFN_ARN=$(terraform output -raw state_machine_arn)
+
+# Déclencher l'orchestration
+aws stepfunctions start-execution \
+    --state-machine-arn $SFN_ARN \
+    --name "AgentValidationRun"
+
+# Vérifier le statut de l'exécution
+aws stepfunctions describe-execution \
+    --execution-arn "${SFN_ARN/stateMachine/execution}:AgentValidationRun"
+MSYS_NO_PATHCONV=1 aws logs tail /ecs/canary-agent --format short
+```
+
 #### 4. Inspection and Micro-segmentation (Guardrails)
 Integrate AWS Network Firewall and the LLM Gateway proxy into the architecture. Modify Security Group chaining to force the test Fargate container to route traffic through these new components. Validate traffic interception and tracing within CloudWatch and ElastiCache.
+
+##### Phase 1 : Preuve du routage intra-VPC (Contrôle du flux)
+Vérifier que la table de routage du sous-réseau Compute force bien le trafic via l'ENI du Firewall et non via la route locale :
+```
+aws ec2 describe-route-tables \
+    --filters "Name=tag:Name,Values=Compute-RT" \
+    --query "RouteTables[*].Routes[*].{Destination:DestinationCidrBlock,Target:VpcEndpointId,Gateway:GatewayId}" \
+    --output table
+```
+
+##### Phase 2 : Exécution initiale (Cold Start & Inspection)
+Déclencher l'orchestrateur pour forcer l'agent à traverser les nouveaux composants.
+```
+export SFN_ARN=$(cd ../3.terraform-orchestration && terraform output -raw state_machine_arn)
+aws stepfunctions start-execution --state-machine-arn $SFN_ARN --name "GuardrailsValidationRun1"
+```
+Vérifier l'interception dans les logs de l'AWS Network Firewall (preuve que le flux n'a pas bypassé l'inspection via un routage défaillant) :
+```
+MSYS_NO_PATHCONV=1 aws logs filter-log-events \
+    --log-group-name "/aws/network-firewall/alert" \
+    --limit 5 \
+    --output json
+```
+##### Phase 3 : Preuve du cache sémantique (Hit Proxy)
+Relancer exactement la même exécution pour solliciter le proxy LLM et ElastiCache.
+```
+aws stepfunctions start-execution --state-machine-arn $SFN_ARN --name "GuardrailsValidationRun2"
+```
+Analyser les logs du conteneur Fargate :
+```
+MSYS_NO_PATHCONV=1 aws logs tail /ecs/canary-agent --format short --follow
+```
+Résultat attendu : Lors du Run 2, la latence de réponse doit s'effondrer (de plusieurs secondes à quelques millisecondes) et les logs du proxy doivent indiquer un Cache Hit, prouvant que la requête n'est jamais remontée jusqu'à l'API Bedrock publique et n'a consommé aucun token.
+
+
+##### Validation (Le Test Empirique)
+Se placer dans `code/4.terraform-guardrails/`.
+```
+terraform init && terraform apply -auto-approve
+```
+
 
 #### 5. Final Remediation Use Case
 Replace the canary script with the actual DevSecOps agent (e.g., retrieving a SonarQube report, generating a code fix, and proposing a Pull Request). This step validates the complete authorization chain, from the triggering event to the action on the target information system via an ephemeral token.
@@ -68,5 +126,6 @@ Replace the canary script with the actual DevSecOps agent (e.g., retrieving a So
 ```
 code/
 ├── 1.terraform-bunker-test/   # Socle réseau Air-Gapped (VPC, Endpoints, SSM)
-└── 2.terraform-canary/        # Reprend le réseau et ajoute le secret et les permissions IAM
+├── 2.terraform-canary/        # Reprend le réseau et ajoute le secret et les permissions IAM
+└── 3.terraform-orchestration/ # State machine Step Functions (Pattern .sync et IAM passRole)
 ```

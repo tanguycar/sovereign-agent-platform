@@ -163,4 +163,7 @@ resource "aws_vpc_endpoint" "interfaces" {
   subnet_ids          = [aws_subnet.endpoints_subnet_a.id, aws_subnet.endpoints_subnet_b.id]
   security_group_ids  = [aws_security_group.endpoints_sg.id]
   private_dns_enabled = true
+  timeouts {
+    delete = "45m"
+  }
 }
