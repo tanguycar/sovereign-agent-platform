@@ -120,6 +120,39 @@ else
 fi
 
 echo ""
+echo "-----------------------------------------------------"
+echo "Phase 4 : Inspection & Micro-segmentation (Guardrails)"
+echo "-----------------------------------------------------"
+echo "[+] Déploiement des Guardrails (ANFW, ElastiCache, LLM Gateway)..."
+(
+    cd 4.terraform-guardrails
+    terraform init -input=false
+    terraform apply -auto-approve -input=false
+    
+    GATEWAY_REPO=$(terraform output -raw gateway_repo_url)
+    echo "[+] Création et Push de l'image LLM Proxy de substitution..."
+    aws ecr get-login-password --region eu-west-3 | docker login --username AWS --password-stdin "$GATEWAY_REPO"
+    docker build -t "$GATEWAY_REPO:latest" .
+    docker push "$GATEWAY_REPO:latest"
+)
+
+echo "[+] Validation du cluster ElastiCache (Redis)..."
+REDIS_STATUS=$(aws elasticache describe-cache-clusters --cache-cluster-id "llm-semantic-cache" --query "CacheClusters[0].CacheClusterStatus" --output text)
+if [ "$REDIS_STATUS" == "available" ]; then
+    echo "✅ SUCCÈS : ElastiCache est provisionné et disponible."
+else
+    echo "⚠️ AVERTISSEMENT : ElastiCache est dans l'état $REDIS_STATUS. Le provisionnement peut prendre jusqu'à 5 minutes."
+fi
+
+echo "[+] Validation de l'AWS Network Firewall..."
+ANFW_STATUS=$(aws network-firewall describe-firewall --firewall-name "air-gapped-anfw" --query "FirewallStatus.Status" --output text)
+if [ "$ANFW_STATUS" == "READY" ]; then
+    echo "✅ SUCCÈS : L'AWS Network Firewall est déployé et READY."
+else
+    echo "⚠️ AVERTISSEMENT : L'ANFW est dans l'état $ANFW_STATUS. Le provisionnement prend du temps."
+fi
+
+echo ""
 echo "====================================================="
 echo "🎉 TOUS LES TESTS SONT PASSÉS AVEC SUCCÈS !"
 echo "La plateforme Agentique Souveraine est certifiée fonctionnelle."

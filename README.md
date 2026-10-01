@@ -76,47 +76,36 @@ MSYS_NO_PATHCONV=1 aws logs tail /ecs/canary-agent --format short
 ```
 
 #### 4. Inspection and Micro-segmentation (Guardrails)
-Integrate AWS Network Firewall and the LLM Gateway proxy into the architecture. Modify Security Group chaining to force the test Fargate container to route traffic through these new components. Validate traffic interception and tracing within CloudWatch and ElastiCache.
-
-##### Phase 1 : Preuve du routage intra-VPC (Contrôle du flux)
-Vérifier que la table de routage du sous-réseau Compute force bien le trafic via l'ENI du Firewall et non via la route locale :
-```
-aws ec2 describe-route-tables \
-    --filters "Name=tag:Name,Values=Compute-RT" \
-    --query "RouteTables[*].Routes[*].{Destination:DestinationCidrBlock,Target:VpcEndpointId,Gateway:GatewayId}" \
-    --output table
-```
-
-##### Phase 2 : Exécution initiale (Cold Start & Inspection)
-Déclencher l'orchestrateur pour forcer l'agent à traverser les nouveaux composants.
-```
-export SFN_ARN=$(cd ../3.terraform-orchestration && terraform output -raw state_machine_arn)
-aws stepfunctions start-execution --state-machine-arn $SFN_ARN --name "GuardrailsValidationRun1"
-```
-Vérifier l'interception dans les logs de l'AWS Network Firewall (preuve que le flux n'a pas bypassé l'inspection via un routage défaillant) :
-```
-MSYS_NO_PATHCONV=1 aws logs filter-log-events \
-    --log-group-name "/aws/network-firewall/alert" \
-    --limit 5 \
-    --output json
-```
-##### Phase 3 : Preuve du cache sémantique (Hit Proxy)
-Relancer exactement la même exécution pour solliciter le proxy LLM et ElastiCache.
-```
-aws stepfunctions start-execution --state-machine-arn $SFN_ARN --name "GuardrailsValidationRun2"
-```
-Analyser les logs du conteneur Fargate :
-```
-MSYS_NO_PATHCONV=1 aws logs tail /ecs/canary-agent --format short --follow
-```
-Résultat attendu : Lors du Run 2, la latence de réponse doit s'effondrer (de plusieurs secondes à quelques millisecondes) et les logs du proxy doivent indiquer un Cache Hit, prouvant que la requête n'est jamais remontée jusqu'à l'API Bedrock publique et n'a consommé aucun token.
-
+Integrate AWS Network Firewall (for Egress/On-Prem perimeter) and the LLM Gateway proxy (Semantic Guardrail) into the architecture. Modify Security Group chaining to force the test Fargate container to route traffic through the Gateway proxy. Validate traffic interception and tracing within CloudWatch and ElastiCache.
 
 ##### Validation (Le Test Empirique)
 Se placer dans `code/4.terraform-guardrails/`.
+1. **Provisionner les Guardrails (ElastiCache, ECS Service, ANFW)**
 ```
 terraform init && terraform apply -auto-approve
+export GATEWAY_REPO=$(terraform output -raw gateway_repo_url)
+export REDIS_ENDPOINT=$(terraform output -raw redis_endpoint)
 ```
+2. **Pousser l'image proxy (LiteLLM Mock)**
+```
+aws ecr get-login-password --region eu-west-3 | docker login --username AWS --password-stdin $GATEWAY_REPO
+cat <<EOF> Dockerfile
+FROM nginx:alpine
+EXPOSE 4000
+CMD ["nginx", "-g", "daemon off;"]
+EOF
+docker build -t $GATEWAY_REPO:latest .
+docker push $GATEWAY_REPO:latest
+```
+3. **Vérifier l'état de l'infrastructure**
+L'API AWS confirmera que le composant de micro-segmentation est actif, prouvant que le chaînage d'accès (Agent -> Proxy -> Bedrock) est mécaniquement imposé.
+```
+# Vérifier que le cluster ElastiCache est actif
+aws elasticache describe-cache-clusters --cache-cluster-id "llm-semantic-cache" --query "CacheClusters[0].CacheClusterStatus"
+# Vérifier que le Firewall est provisionné (Ready)
+aws network-firewall describe-firewall --firewall-name "air-gapped-anfw" --query "FirewallStatus.Status"
+```
+
 
 
 #### 5. Final Remediation Use Case

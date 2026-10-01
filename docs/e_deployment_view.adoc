@@ -13,75 +13,75 @@ image::e1_deployment_view.png[Deployment View]
 // [source,mermaid]
 // ----
 // graph TD
-//     %% Custom Color Palette 
-//     classDef system fill:#0052cc,stroke:#003d99,stroke-width:2px,color:white;
-//     classDef external fill:#808080,stroke:#4d4d4d,stroke-width:2px,color:white;
-//     classDef aws fill:#ff9900,stroke:#cc7a00,stroke-width:2px,color:black;
-//     classDef interface fill:#e6f0ff,stroke:#0052cc,stroke-width:2px,stroke-dasharray: 5 5,color:black;
-//     classDef security fill:#f9ebf9,stroke:#8e24aa,stroke-width:2px,color:black;
-//     classDef boundary fill:none,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
-//     classDef solidBoundary fill:none,stroke:#333,stroke-width:2px;
+//      %% Custom Color Palette 
+//      classDef system fill:#0052cc,stroke:#003d99,stroke-width:2px,color:white;
+//      classDef external fill:#808080,stroke:#4d4d4d,stroke-width:2px,color:white;
+//      classDef aws fill:#ff9900,stroke:#cc7a00,stroke-width:2px,color:black;
+//      classDef interface fill:#e6f0ff,stroke:#0052cc,stroke-width:2px,stroke-dasharray: 5 5,color:black;
+//      classDef security fill:#f9ebf9,stroke:#8e24aa,stroke-width:2px,color:black;
+//      classDef boundary fill:none,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
+//      classDef solidBoundary fill:none,stroke:#333,stroke-width:2px;
 
-//     subgraph Corporate ["🏢 Corporate On-Premises Datacenter"]
-//         DX["AWS Direct Connect Router"]:::external
-//     end
+//      subgraph Corporate ["🏢 Corporate On-Premises Datacenter"]
+//          DX["AWS Direct Connect Router"]:::external
+//      end
 
-//     subgraph AWSRegion ["☁️ AWS Region (eu-west-3 - Paris)"]
-        
-//         subgraph VPC ["🔒 Isolated VPC (10.0.0.0/16) - Air-Gapped"]
-//             VGW["Virtual Private Gateway (VGW)"]:::aws
-//             S3GW["S3 Gateway Endpoint<br/>(Route Table)"]:::interface
-//             ANFW["<b>AWS Network Firewall</b><br/><i>(Deep Packet Inspection & Egress)</i>"]:::security
+//      subgraph AWSRegion ["☁️ AWS Region (eu-west-3 - Paris)"]
+         
+//          subgraph VPC ["🔒 Isolated VPC (10.0.0.0/16) - Air-Gapped"]
+//              VGW["Virtual Private Gateway (VGW)"]:::aws
+//              S3GW["S3 Gateway Endpoint<br/>(Route Table)"]:::interface
+//              ANFW["<b>AWS Network Firewall</b><br/><i>(Perimeter Egress/Ingress)</i>"]:::security
 
-//             subgraph AZ ["Multi-Availability Zone (AZ-A & AZ-B)"]
-//                 subgraph AppSubnet ["App Private Subnets (Compute Layer)"]
-//                     Compute["AWS Fargate & Step Functions<br/>(Agentic Orchestrator & State)"]:::system
-//                 end
+//              subgraph AZ ["Multi-Availability Zone (AZ-A & AZ-B)"]
+//                  subgraph AppSubnet ["App Private Subnets (Compute Layer)"]
+//                      Compute["AWS Fargate & Step Functions<br/>(Agentic Orchestrator & State)"]:::system
+//                  end
                 
-//                 subgraph GatewaySubnet ["FinOps & API Routing Subnets"]
-//                     LLMGW["<b>Internal LLM Gateway Proxy</b><br/><i>(e.g., LiteLLM / Envoy on Fargate)</i>"]:::system
-//                 end
+//                  subgraph GatewaySubnet ["FinOps, Guardrails & Cache Subnets"]
+//                      LLMGW["<b>Internal LLM Gateway Proxy</b><br/><i>(e.g., LiteLLM / Envoy on Fargate)</i>"]:::system
+//                      ElastiCache["Amazon ElastiCache<br/>(Semantic Cache - Redis ENI)"]:::aws
+//                  end
 
-//                 subgraph EndpointsSubnet ["Endpoints Private Subnets (PrivateLink)"]
-//                     VPCE["VPC Interface Endpoints<br/>(ENIs)"]:::interface
-//                 end
-//             end
+//                  subgraph EndpointsSubnet ["Endpoints Private Subnets (PrivateLink)"]
+//                      VPCE["VPC Interface Endpoints<br/>(ENIs)"]:::interface
+//                  end
+//              end
             
-//             %% Bidirectional flow for Egress/Ingress Firewall inspection
-//             VGW <-->|"TCP 443"| ANFW
-//             ANFW <-->|"Filtered Traffic"| Compute
-            
-//             Compute -->|"API Call"| LLMGW
-//             LLMGW -->|"Cache Miss / Auth (TCP 443)"| VPCE
-//             Compute -.->|"Internal Routing"| S3GW
-//         end
+//              %% Egress/Ingress Perimeter
+//              VGW <-->|"TCP 443 (External Routing)"| ANFW
+             
+//              %% Strict Zero-Trust SG Chaining
+//              Compute -->|"API Call (TCP 4000)"| LLMGW
+//              LLMGW -->|"Cache Hit/Miss (TCP 6379)"| ElastiCache
+//              LLMGW -->|"Auth & Bedrock (TCP 443)"| VPCE
+//              Compute -.->|"Data Payload Routing"| S3GW
+//          end
 
-//         subgraph Services ["⚙️ AWS Managed Services (Private Backbone)"]
-//             Bedrock["Amazon Bedrock<br/>(Mistral Large 3 / Titan)"]:::aws
-//             AOSS["Amazon OpenSearch Serverless"]:::aws
-//             Vault["AWS Secrets Manager<br/>(Dynamic Vault)"]:::aws
-//             ElastiCache["Amazon ElastiCache<br/>(Semantic Cache)"]:::aws
-//             KMS["AWS KMS<br/>(CMK)"]:::aws
-//             CW["Amazon CloudWatch / CloudTrail"]:::aws
-//             S3["Amazon S3"]:::aws
-//         end
-//     end
+//          subgraph Services ["⚙️ AWS Managed Services (Private Backbone)"]
+//              Bedrock["Amazon Bedrock<br/>(Mistral Large 3 / Titan)"]:::aws
+//              AOSS["Amazon OpenSearch Serverless"]:::aws
+//              Vault["AWS Secrets Manager<br/>(Dynamic Vault)"]:::aws
+//              KMS["AWS KMS<br/>(CMK)"]:::aws
+//              CW["Amazon CloudWatch / CloudTrail"]:::aws
+//              S3["Amazon S3"]:::aws
+//          end
+//      end
 
-//     Corporate <-->|"Private Fiber (BGP / 802.1Q)"| VGW
+//      Corporate <-->|"Private Fiber (BGP / 802.1Q)"| VGW
     
-//     %% Connections from VPC Endpoints to Services
-//     VPCE -->|"AWS PrivateLink (SigV4)"| Bedrock
-//     VPCE -->|"AWS PrivateLink (SigV4)"| AOSS
-//     VPCE -->|"AWS PrivateLink (SigV4)"| Vault
-//     VPCE -->|"AWS PrivateLink (SigV4)"| KMS
-//     VPCE -->|"AWS PrivateLink (SigV4)"| CW
-//     VPCE -->|"AWS ENI"| ElastiCache
+//      %% Connections from VPC Endpoints to Services
+//      VPCE -->|"AWS PrivateLink (SigV4)"| Bedrock
+//      VPCE -->|"AWS PrivateLink (SigV4)"| AOSS
+//      VPCE -->|"AWS PrivateLink (SigV4)"| Vault
+//      VPCE -->|"AWS PrivateLink (SigV4)"| KMS
+//      VPCE -->|"AWS PrivateLink (SigV4)"| CW
     
-//     %% Connection from Gateway to S3
-//     S3GW -->|"AWS SDN"| S3
+//      %% Connection from Gateway to S3
+//      S3GW -->|"AWS SDN"| S3
     
-//     class AWSRegion,VPC,AZ,Services solidBoundary;
-//     class AppSubnet,EndpointsSubnet,GatewaySubnet boundary;
+//      class AWSRegion,VPC,AZ,Services solidBoundary;
+//      class AppSubnet,EndpointsSubnet,GatewaySubnet boundary;
 // ----
 
 [cols="20%,25%,55%", options="header"]

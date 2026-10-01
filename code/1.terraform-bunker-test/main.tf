@@ -112,15 +112,17 @@ resource "aws_security_group" "compute_sg" {
 
 resource "aws_security_group" "endpoints_sg" {
   name        = "vpc-endpoints-sg"
-  description = "Allow inbound from Compute SG only"
+  description = "Allow inbound from Compute and Gateway"
   vpc_id      = aws_vpc.air_gapped_vpc.id
-  
-  ingress {
-    from_port       = 443
-    to_port         = 443
-    protocol        = "tcp"
-    security_groups = [aws_security_group.compute_sg.id]
-  }
+}
+
+resource "aws_security_group_rule" "endpoints_ingress_compute" {
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.endpoints_sg.id
+  source_security_group_id = aws_security_group.compute_sg.id
 }
 
 resource "aws_security_group_rule" "compute_egress_endpoints" {
