@@ -30,6 +30,11 @@ resource "aws_kms_key" "agent_cmk" {
   enable_key_rotation     = true
 }
 
+resource "aws_kms_alias" "agent_cmk_alias" {
+  name          = "alias/agent-cmk"
+  target_key_id = aws_kms_key.agent_cmk.id
+}
+
 resource "aws_secretsmanager_secret" "canary_secret" {
   name                    = "agent/canary/api-token"
   kms_key_id              = aws_kms_key.agent_cmk.id

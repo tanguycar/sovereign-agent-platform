@@ -108,13 +108,22 @@ aws network-firewall describe-firewall --firewall-name "air-gapped-anfw" --query
 
 
 
-#### 5. Final Remediation Use Case
-Replace the canary script with the actual DevSecOps agent (e.g., retrieving a SonarQube report, generating a code fix, and proposing a Pull Request). This step validates the complete authorization chain, from the triggering event to the action on the target information system via an ephemeral token.
+#### 5. Final Remediation Use Case (Endothelial Test)
+Replace the canary script with an autonomous remediation agent operating strictly within the air-gapped perimeter. To empirically prove isolation without relying on external SaaS (which would break the air-gap), the workflow executes a 3-step internal loop:
+1. **Context Acquisition:** The Fargate agent retrieves a simulated code vulnerability report securely stored in AWS Secrets Manager.
+2. **Inference & Guardrails:** The agent queries Amazon Bedrock to generate a code fix. This request is mechanically forced through the internal LLM Gateway Proxy (validating micro-segmentation, semantic caching via ElastiCache, and ANFW internal rules).
+3. **Target Remediation (S3 Sink):** The agent writes the generated patch into a segregated "Target-IS" Amazon S3 bucket. 
+
+This step formally validates the complete authorization chain and network isolation: success proves the agent can execute complex logic and alter a target system exclusively via VPC Endpoints and strict IAM/Bucket Policies, without a single byte leaving the isolated VPC.
+
+
 
 ## Folder structure
 ```
 code/
 ├── 1.terraform-bunker-test/   # Socle réseau Air-Gapped (VPC, Endpoints, SSM)
 ├── 2.terraform-canary/        # Reprend le réseau et ajoute le secret et les permissions IAM
-└── 3.terraform-orchestration/ # State machine Step Functions (Pattern .sync et IAM passRole)
+├── 3.terraform-orchestration/ # State machine Step Functions (Pattern .sync et IAM passRole)
+├── 4.terraform-guardrails/    # Proxy LLM, ElastiCache et Cloud Map Service Discovery
+└── 5.terraform-remediation/   # Agent final, IAM restreint strict et S3 Target Sink
 ```

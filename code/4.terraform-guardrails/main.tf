@@ -201,6 +201,10 @@ resource "aws_ecs_service" "gateway_service" {
     security_groups  = [aws_security_group.gateway_sg.id]
     assign_public_ip = false
   }
+
+  service_registries {
+    registry_arn = aws_service_discovery_service.gateway.arn
+  }
 }
 
 # --- 5. AWS Network Firewall (Egress Préparation) ---
@@ -247,3 +251,21 @@ resource "aws_networkfirewall_firewall" "anfw" {
 
 output "gateway_repo_url" { value = aws_ecr_repository.gateway_repo.repository_url }
 output "redis_endpoint" { value = aws_elasticache_cluster.semantic_cache.cache_nodes[0].address }
+
+# --- 6. Service Discovery (Cloud Map) ---
+resource "aws_service_discovery_private_dns_namespace" "internal" {
+  name        = "airgap.local"
+  vpc         = data.aws_vpc.bunker.id
+  description = "Internal DNS for Air-Gapped Proxy"
+}
+
+resource "aws_service_discovery_service" "gateway" {
+  name = "llm-proxy"
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.internal.id
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+  }
+}

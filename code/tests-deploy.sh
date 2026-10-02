@@ -152,6 +152,72 @@ else
     echo "⚠️ AVERTISSEMENT : L'ANFW est dans l'état $ANFW_STATUS. Le provisionnement prend du temps."
 fi
 
+
+echo ""
+echo "-----------------------------------------------------"
+echo "Phase 5 : Endothelial Remediation Use Case"
+echo "-----------------------------------------------------"
+echo "[+] Déploiement de l'environnement de remédiation..."
+(
+    cd 5.terraform-remediation
+    terraform init -input=false
+    terraform apply -auto-approve -input=false
+    
+    REM_REPO=$(terraform output -raw repository_url)
+    REM_FAMILY=$(terraform output -raw task_family)
+    TARGET_BUCKET=$(terraform output -raw target_bucket)
+    
+    echo "[+] Création de l'image de remédiation (Exécution des vrais appels API AWS)..."
+    aws ecr get-login-password --region eu-west-3 | docker login --username AWS --password-stdin "$REM_REPO"
+    docker build -t "$REM_REPO:latest" -q ./app
+    docker push "$REM_REPO:latest" -q
+
+    echo "[+] Lancement de l'Agent Fargate en boucle fermée..."
+    REM_TASK_ARN=$(aws ecs run-task \
+        --cluster "$CLUSTER" \
+        --task-definition "$REM_FAMILY" \
+        --launch-type FARGATE \
+        --network-configuration "awsvpcConfiguration={subnets=[$SUBNET],securityGroups=[$SG],assignPublicIp=DISABLED}" \
+        --query "tasks[0].taskArn" \
+        --output text)
+
+    echo "[+] Attente de la résolution de l'agent..."
+    aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$REM_TASK_ARN"
+    REM_EXIT_CODE=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$REM_TASK_ARN" --query "tasks[0].containers[0].exitCode" --output text)
+
+    if [ "$REM_EXIT_CODE" != "0" ] && [ "$REM_EXIT_CODE" != "None" ]; then
+        echo "❌ ÉCHEC CRITIQUE : L'agent a crashé (Code $REM_EXIT_CODE). Droits IAM ou Endpoints défaillants."
+        MSYS_NO_PATHCONV=1 aws logs tail /ecs/remediation-agent --format short
+        exit 1
+    fi
+
+    echo "[+] Attente de l'ingestion CloudWatch et S3 (10 secondes)..."
+    sleep 10
+
+    echo ""
+    echo "🔍 EXTRACTION DES PREUVES BRUTES (AIR-GAP VERIFIED) :"
+    echo "-----------------------------------------------------"
+    
+    echo "[Preuve 1] Traces d'exécution internes (CloudWatch) :"
+    # Le '|| echo' empêche le set -e de tuer le script si grep ne trouve rien
+    MSYS_NO_PATHCONV=1 aws logs tail /ecs/remediation-agent --format short | grep "✅" || echo "⚠️ Télémétrie introuvable. Ingestion en cours ou échec silencieux de l'agent."
+    
+    echo ""
+    echo "[Preuve 2] Vérification de l'altération de la cible (S3) :"
+    # Le '|| true' est obligatoire pour ne pas crasher si ls échoue (fichier non trouvé)
+    S3_CHECK=$(aws s3 ls s3://$TARGET_BUCKET/patch.json 2>/dev/null || true)
+    
+    if [ -n "$S3_CHECK" ]; then
+        echo "✅ SUCCÈS : Artefact 'patch.json' physiquement présent dans le bucket isolé $TARGET_BUCKET."
+        echo "✅ Preuve de contenu :"
+        aws s3 cp s3://$TARGET_BUCKET/patch.json - 2>/dev/null
+    else
+        echo "❌ ÉCHEC : Aucun artefact trouvé dans le S3 cible. La remédiation a échoué."
+        exit 1
+    fi
+)
+
+
 echo ""
 echo "====================================================="
 echo "🎉 TOUS LES TESTS SONT PASSÉS AVEC SUCCÈS !"
