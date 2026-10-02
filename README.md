@@ -7,11 +7,26 @@ Sovereign Air-Gapped AI Agent Platform
 
 **Construire, déployer et valider toute l'architecture :**
 ```
-./code/tests-deploy.sh
+cd code/
+for d in [1-5].terraform-*/; do
+  echo "==> Déploiement : $d"
+  terraform -chdir="$d" init -input=false && \
+  terraform -chdir="$d" apply -auto-approve -input=false || { echo "❌ Échec critique sur $d. Arrêt immédiat."; return 1 2>/dev/null || break; }
+done
+
+echo "==> Tous les déploiements ont réussi. Lancement de la validation..."
+./tests-deploy.sh
 ```
 **Détruire totalement et vérifier le démantèlement :**
 ```
-./code/tests-destroy.sh
+cd code/
+for d in $(ls -d [1-5].terraform-*/ | sort -r); do
+  echo "==> Destruction : $d"
+  terraform -chdir="$d" destroy -auto-approve -input=false || break
+done
+
+echo "==> Tous les suppressions ont réussi. Lancement de la vérification..."
+./tests-destroy.sh
 ```
 
 ## Code Folder structure
