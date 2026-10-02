@@ -1,6 +1,6 @@
 FROM alpine:latest
 RUN apk add --no-cache aws-cli curl
-CMD echo "✅ [AGENT] Démarrage dans le Bunker" && \
-    echo "✅ [AGENT] Lecture Secret Manager..." && aws secretsmanager get-secret-value --secret-id agent/remediation/vuln-report --region eu-west-3 --query SecretString --output text && \
-    echo "✅ [AGENT] Tentative Proxy LLM..." && curl -s --max-time 2 $LLM_PROXY_URL || echo "Proxy atteint (Timeout attendu si mock nginx)" && \
-    echo "✅ [AGENT] Ecriture du patch dans S3 Target..." && echo '{"status": "patched", "cve": "CVE-2026-9999"}' > patch.json && aws s3 cp patch.json s3://$TARGET_S3_BUCKET/patch.json --region eu-west-3
+CMD echo "[INFO] [AGENT] Démarrage dans le Bunker" && \
+    echo "[INFO] [AGENT] Lecture Secret Manager..." && aws secretsmanager get-secret-value --secret-id agent/remediation/vuln-report --region eu-west-3 --query SecretString --output text && \
+    echo "[INFO] [AGENT] Tentative Proxy LLM..." && curl -s --max-time 2 $LLM_PROXY_URL || echo "Proxy atteint (Timeout attendu si mock nginx)" && \
+    echo "[INFO] [AGENT] Ecriture du patch dans S3 Target..." && echo '{"status": "patched", "cve": "CVE-2026-9999"}' > patch.json && aws s3 cp patch.json s3://$TARGET_S3_BUCKET/patch.json --region eu-west-3

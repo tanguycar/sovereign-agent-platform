@@ -200,7 +200,7 @@ echo "[+] Déploiement de l'environnement de remédiation..."
     
     echo "[Preuve 1] Traces d'exécution internes (CloudWatch) :"
     # Le '|| echo' empêche le set -e de tuer le script si grep ne trouve rien
-    MSYS_NO_PATHCONV=1 aws logs tail /ecs/remediation-agent --format short | grep "✅" || echo "⚠️ Télémétrie introuvable. Ingestion en cours ou échec silencieux de l'agent."
+    PYTHONIOENCODING=utf8 MSYS_NO_PATHCONV=1 aws logs tail /ecs/remediation-agent --format short | grep "\[AGENT\]" || echo "⚠️ Télémétrie introuvable. Ingestion en cours ou échec silencieux de l'agent."
     
     echo ""
     echo "[Preuve 2] Vérification de l'altération de la cible (S3) :"
