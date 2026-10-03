@@ -14,7 +14,7 @@ The platform enforces a strict zero-trust perimeter, eliminating public network 
 | ID & Constraint | Specification & Rationale
 
 | *TC-1: Air-Gapped Network Isolation*
-| Zero public internet transit. Total absence of Internet Gateways (IGW) or NAT Gateways. All agentic workload traffic routes strictly internally via private endpoints (e.g., AWS PrivateLink) or dedicated private corporate networks.
+| Zero public internet transit. Total absence of Internet Gateways (IGW) or NAT Gateways. All agentic workload traffic routes strictly internally via VPC Interface Endpoints (AWS PrivateLink). Any external routing to the Corporate On-Premises Datacenter via the Virtual Private Gateway (VGW) must strictly traverse an inline AWS Network Firewall for Deep Packet Inspection (DPI).
 
 | *TC-2: Dynamic Secrets Enforcement*
 | Zero static credentials. Autonomous agents are prohibited from holding hardcoded access rights. All interactions with corporate IT systems require the agent to dynamically request short-lived, ephemeral tokens from a centralized vault (e.g., AWS Secrets Manager, OpenBao).
@@ -23,7 +23,10 @@ The platform enforces a strict zero-trust perimeter, eliminating public network 
 | Mandatory envelope encryption for data at rest and in transit using Customer Managed Keys (CMK). A strict separation of duties is enforced between infrastructure operators (compute deployment) and security custodians (key management).
 
 | *TC-4: Immutable & Stateless Compute*
-| The agentic orchestrator and associated LLM reasoning runtimes must operate on stateless, ephemeral compute nodes. No persistent custom application states are permitted locally, minimizing the attack surface.
+| The agentic orchestrator and reasoning runtimes (AWS Fargate & Step Functions) must operate on stateless compute nodes. Internal state retention is strictly limited to the Semantic Cache (Amazon ElastiCache) which must enforce hard limits: at-rest CMK encryption and short-lived Time-To-Live (TTL) eviction policies. No persistent custom application databases are permitted locally.
+
+| *TC-5: Centralized AI Governance & FinOps Guardrails*
+| Direct invocation of AWS Bedrock by compute resources is strictly prohibited. All inference requests must route through an Internal LLM Gateway Proxy (e.g., LiteLLM). This gateway is mandated to enforce structural guardrails, token rate-limiting, semantic caching, and precise FinOps cost attribution.
 |===
 
 === 2 Organizational and Regulatory Constraints
@@ -35,7 +38,7 @@ These boundaries guarantee intellectual property protection and strict operation
 | ID & Constraint | Specification & Rationale
 
 | *OC-1: Zero Data Retention (ZDR)*
-| Strict technical and contractual prohibition of model retraining. Agentic reasoning traces, prompts, and corporate context payloads must never be persisted by the inference engine beyond the ephemeral execution window.
+| Strict technical and contractual prohibition of model retraining by the inference provider (Amazon Bedrock). The provider must guarantee that prompt payloads, corporate context, and reasoning traces are immediately discarded post-inference. Internal platform traces and cached payloads must mechanically expire per TC-4.
 
 | *OC-2: Deterministic Traceability*
 | Every API call, delegated task, vault access, and agent reasoning step must be logged immutably to a centralized Security Information and Event Management (SIEM) system to meet aerospace/defense auditability standards.
