@@ -1,0 +1,21 @@
+== 9. Architecture Decisions
+
+=== ADR-001: Strict Network Isolation (Zero-Trust VPC)
+* **Context:** The system processes sensitive data requiring zero public internet exposure.
+* **Decision:** The VPC is configured for strict isolation (pseudo air-gapped). All On-Premises traffic routes through AWS Direct Connect (VGW) and undergoes deep packet inspection via AWS Network Firewall. 
+* **Consequences:** Mandates the exclusive use of AWS PrivateLink (VPC Interface Endpoints) and Gateway Endpoints (for S3) to access managed services. Significantly increases intra-VPC data transfer costs.
+
+=== ADR-002: LLM Access Abstraction (LLM Gateway)
+* **Context:** Direct dependency on LLM APIs (Amazon Bedrock) complicates FinOps tracking, guardrail enforcement, and prompt routing.
+* **Decision:** Implementation of an internal LLM Gateway (e.g., LiteLLM via Envoy on AWS Fargate) coupled with Amazon ElastiCache (Redis) between the compute layer and Bedrock.
+* **Consequences:** Decouples the agentic application code from specific LLM providers. Enables semantic caching and centralized policy enforcement. Introduces a Single Point of Failure (SPOF) requiring Multi-AZ high availability and adds a minor latency overhead per inference call.
+
+=== ADR-003: Serverless Orchestration and Compute
+* **Context:** Requirement to execute complex, multi-step agentic workflows without managing underlying compute infrastructure.
+* **Decision:** Combined use of AWS Fargate (stateless containers) and AWS Step Functions (state machine) for agent orchestration.
+* **Consequences:** Drastically reduces operational burden. However, it establishes a strong vendor lock-in to the AWS serverless execution model and creates a high risk of performance/cost bottlenecks on Step Functions state transitions during rapid agentic iterative loops.
+
+=== ADR-004: Managed Data and Security (AWS Perimeter)
+* **Context:** Need for a highly scalable vector engine for RAG, alongside secure secrets and cryptographic key management.
+* **Decision:** Adoption of Amazon OpenSearch Serverless, AWS Secrets Manager, and AWS KMS (Customer Managed Keys) routed exclusively through the AWS private backbone.
+* **Consequences:** Total delegation of physical and hypervisor-level security to AWS. "Sovereignty" is strictly limited to logical access controls (IAM/KMS policies) and geographic data residency (eu-west-3 Region), remaining inherently subordinate to the cloud provider's legal jurisdiction (e.g., Cloud Act).
