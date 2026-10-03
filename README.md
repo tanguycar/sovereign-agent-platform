@@ -3,6 +3,16 @@ Sovereign Air-Gapped AI Agent Platform
 
 # Code
 
+# Code
+
+## ⚠️ Notes d'Implémentation & Limites Actuelles
+
+L'infrastructure déployée via le code Terraform actuel présente des simplifications volontaires par rapport au schéma d'architecture cible strict :
+
+*   **Périmètre Réseau (ANFW) :** Bien que l'AWS Network Firewall soit provisionné, le routage Ingress (Edge Route Table via VGW) n'est pas encore implémenté. Le trafic entrant n'est pas techniquement forcé à travers le pare-feu. La connectivité hybride (Direct Connect/VGW) n'est pas instanciée.
+*   **Isolation Zero-Trust :** Le layer Compute (Fargate) dispose d'un accès direct à l'ensemble des VPC Endpoints (HTTPS), incluant Amazon Bedrock. Le trafic vers les LLM n'est donc pas restreint de manière stricte au passage obligatoire par l'Internal LLM Gateway Proxy (LiteLLM) au niveau des Security Groups.
+*   **Dépendances AWS :** Pour assurer l'amorçage opérationnel de Fargate, les flux vers les VPCE vitaux (ECR, CloudWatch, KMS, Secrets Manager) sont autorisés, une complexité omise dans la vue logique de l'architecture.
+
 ## Quickstart : Lifecycle Management
 
 **Construire, déployer et valider toute l'architecture :**

@@ -23,10 +23,6 @@ data "aws_security_group" "compute_sg" {
   }
 }
 
-# data "aws_iam_role" "exec_role" {
-#   name = "canary-execution-role"
-# }
-
 resource "aws_iam_role" "remediation_exec_role" {
   name = "remediation-exec-role"
   assume_role_policy = jsonencode({
@@ -102,7 +98,6 @@ resource "aws_iam_role_policy" "remediation_task_policy" {
   })
 }
 
-# Force mécanique du Endpoint S3 via Bucket Policy
 resource "aws_s3_bucket_policy" "target_is_policy" {
   bucket = aws_s3_bucket.target_is.id
   policy = jsonencode({

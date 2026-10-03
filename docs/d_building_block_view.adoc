@@ -7,7 +7,7 @@ The Building Block View explains the static decomposition of the Sovereign Agent
 
 === 1 Whitebox Overall System (Level 1)
 
-At the highest level of abstraction, the agentic platform is decomposed into five logical layers. This modularity ensures a strict separation of concerns between state orchestration, pure cognitive reasoning, enterprise execution, and cryptographic governance.
+At the highest level of abstraction, the agentic platform is decomposed into six logical layers. This modularity ensures a strict separation of concerns between state orchestration, LLM traffic governance, pure cognitive reasoning, enterprise execution, and cryptographic security.
 
 .Level 1: Whitebox Overall System
 image::d1_building_block_view.png[Business Context]
@@ -15,33 +15,44 @@ image::d1_building_block_view.png[Business Context]
 // [source,mermaid]
 // ----
 // graph TD
-//     %% Base colors from Technical Context (C2)
-//     classDef system fill:#0052cc,stroke:#003d99,stroke-width:2px,color:white;
-//     classDef aws fill:#ff9900,stroke:#cc7a00,stroke-width:2px,color:black;
-//     classDef security fill:#e6f0ff,stroke:#0052cc,stroke-width:2px,stroke-dasharray: 5 5,color:black;
-//     classDef boundary fill:none,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
+//      %% Base colors from Technical Context (C2)
+//      classDef system fill:#0052cc,stroke:#003d99,stroke-width:2px,color:white;
+//      classDef aws fill:#ff9900,stroke:#cc7a00,stroke-width:2px,color:black;
+//      classDef middleware fill:#00875a,stroke:#006644,stroke-width:2px,color:white;
+//      classDef security fill:#e6f0ff,stroke:#0052cc,stroke-width:2px,stroke-dasharray: 5 5,color:black;
+//      classDef boundary fill:none,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
 
-//     subgraph BlackBox ["Sovereign Air-Gapped Agentic Platform (Whitebox Level 1)"]
-        
-//         SecPlane["<b>5. Trust, Security & Secrets Plane</b><br/><i>(AWS Secrets Manager, KMS, Bedrock Guardrails, CloudTrail)</i>"]:::security
-        
-//         Orchestrator["<b>1. Agentic Orchestration Layer</b><br/><i>(Control Plane - AWS Fargate)</i>"]:::system
-        
-//         subgraph SubSystems ["Capabilities"]
-//             Knowledge["<b>3. Knowledge & Retrieval Pipeline</b><br/><i>(OpenSearch / Amazon Titan)</i>"]:::aws
-//             Cognitive["<b>2. Cognitive Engine Layer</b><br/><i>(Amazon Bedrock / Mistral Large 3)</i>"]:::aws
-//             Action["<b>4. Tools & Action Layer</b><br/><i>(Execution Engine / HITL)</i>"]:::system
-//         end
-        
-//         %% Core dependencies
-//         SecPlane -. "Zero-Trust Governance<br/>(Tokens, KMS Keys, Prompt Filters, Audit)" .- Orchestrator
-//         Orchestrator -->|"Domain Context Search<br/>(ABAC applied)"| Knowledge
-//         Orchestrator -->|"Reasoning & Synthesis<br/>(Stateless Inference)"| Cognitive
-//         Orchestrator -->|"API Delegation<br/>(Approval required)"| Action
-//     end
+//      subgraph BlackBox ["Sovereign Air-Gapped Agentic Platform (Whitebox Level 1)"]
+         
+//          SecPlane["<b>6. Trust, Security & Secrets Plane</b><br/><i>(AWS Secrets Manager, KMS, CloudTrail)</i>"]:::security
+         
+//          Orchestrator["<b>1. Agentic Orchestration & State Layer</b><br/><i>(Control Plane - AWS Fargate & Step Functions)</i>"]:::system
+         
+//          subgraph SubSystems ["Capabilities & Governance"]
+//              LLMGateway["<b>2. LLM Governance & Cache Layer</b><br/><i>(Internal Proxy / LiteLLM + ElastiCache)</i>"]:::middleware
+//              Cognitive["<b>3. Cognitive Engine Layer</b><br/><i>(Amazon Bedrock / Mistral Large 3)</i>"]:::aws
+//              Knowledge["<b>4. Knowledge, Data & Retrieval Pipeline</b><br/><i>(OpenSearch / Amazon Titan / S3)</i>"]:::aws
+//              Action["<b>5. Tools & Action Layer</b><br/><i>(Execution Engine / HITL)</i>"]:::system
+//          end
+         
+//          %% Core dependencies and Governance
+//          SecPlane -. "Zero-Trust Governance<br/>(Tokens, KMS Keys, Audit)" .- Orchestrator
+//          SecPlane -. "Policy & Key Injection" .- LLMGateway
+         
+//          %% Orchestrator Control Flow
+//          Orchestrator -->|"Domain Context Search & Artifacts"| Knowledge
+//          Orchestrator -->|"API Delegation<br/>(Approval required)"| Action
+         
+//          %% Strict routing through the Gateway (as defined in deployment)
+//          Orchestrator -->|"Prompt/Agent Request<br/>(TCP 4000)"| LLMGateway
+         
+//          %% Gateway routing to Cognitive & Embedding
+//          LLMGateway -->|"Reasoning & Synthesis<br/>(Cache Miss - Bedrock Guardrails)"| Cognitive
+//          LLMGateway -->|"Embedding Generation"| Knowledge
+//      end
 
-//     class BlackBox boundary;
-//     style SubSystems fill:none,stroke:none;
+//      class BlackBox boundary;
+//      style SubSystems fill:none,stroke:none;
 // ----
 
 The following table details the functional accountability of each building block within the air-gapped perimeter.
@@ -50,23 +61,27 @@ The following table details the functional accountability of each building block
 |===
 | Building Block | Core Responsibility | Key Technologies
 
-| **1. Agentic Orchestration Layer**
-| "Control Plane". Maintains execution state and routes data without embedding cognitive logic.
-| AWS Fargate / Step Functions.
+| **1. Agentic Orchestration & State Layer**
+| "Control Plane". Maintains execution state, manages agentic loops, and orchestrates data flow. Strictly forbidden from calling cognitive APIs directly.
+| AWS Fargate, AWS Step Functions.
 
-| **2. Cognitive Engine Layer**
-| "Reasoning Engine". Formulates execution plans under a strict Zero Data Retention (ZDR) policy.
-| Amazon Bedrock (Mistral Large 3).
+| **2. LLM Governance & Cache Layer**
+| "Inference Choke Point". Mandatory internal proxy for all LLM and embedding requests. Enforces semantic caching, FinOps rate-limiting, and centralizes routing.
+| Internal Proxy (e.g., LiteLLM/Envoy), Amazon ElastiCache (Redis).
 
-| **3. Knowledge & Retrieval Pipeline**
-| Context retrieval system. Enforces Attribute-Based Access Control (ABAC) before vector fetching.
-| Amazon S3, OpenSearch Serverless, Amazon Titan.
+| **3. Cognitive Engine Layer**
+| "Reasoning Engine". Formulates execution plans under a strict Zero Data Retention (ZDR) policy. Subject to centralized Guardrails upon cache miss.
+| Amazon Bedrock (Mistral Large 3), Bedrock Guardrails.
 
-| **4. Tools & Action Layer**
-| "Execution Engine". Executes corporate API calls post-HITL validation using strictly ephemeral tokens.
+| **4. Knowledge, Data & Retrieval Pipeline**
+| "Context & Artifacts". Enforces Attribute-Based Access Control (ABAC) for vector retrieval and provides isolated storage for agentic artifacts.
+| Amazon S3, Amazon OpenSearch Serverless, Amazon Titan (Embeddings).
+
+| **5. Tools & Action Layer**
+| "Execution Engine". Executes corporate API calls post-HITL (Human-in-the-Loop) validation using strictly ephemeral tokens.
 | Custom integration modules on AWS Fargate.
 
-| **5. Trust, Security & Secrets Plane**
-| Transversal governance. Provisions dynamic secrets, filters prompts, and exports immutable audit logs to the SIEM.
-| AWS Secrets Manager, KMS (CMK), Bedrock Guardrails, CloudTrail.
+| **6. Trust, Security & Secrets Plane**
+| Transversal governance. Provisions dynamic secrets, enforces KMS encryption (CMK), and exports immutable audit logs to the corporate SIEM.
+| AWS Secrets Manager, AWS KMS (CMK), AWS CloudTrail.
 |===

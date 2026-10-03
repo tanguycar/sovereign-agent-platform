@@ -53,7 +53,6 @@ resource "aws_subnet" "gateway_subnet_b" {
   tags = { Name = "Gateway-Subnet-B" }
 }
 
-# Tables de routage découplées pour insertion future de l'ANFW
 resource "aws_route_table" "compute_rt" {
   vpc_id = aws_vpc.air_gapped_vpc.id
   tags = { Name = "Compute-RT" }
